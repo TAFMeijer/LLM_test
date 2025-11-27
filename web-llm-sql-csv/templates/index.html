@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web LLM SQL CSV</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Budget Query Assistant</h1>
+            <p>Ask any question about the GF budget data.</p>
+        </header>
+
+        <main>
+            <div class="input-group">
+                <textarea id="queryInput" placeholder="e.g., How much is the budget for the lab systems module?"
+                    rows="1"></textarea>
+                <button id="submitBtn">Ask</button>
+            </div>
+
+            <div id="status" class="status hidden">
+                <div class="spinner"></div>
+                <span id="statusText">Processing...</span>
+            </div>
+
+            <div id="result" class="result hidden">
+                <h3>Result</h3>
+                <div class="debug-info">
+                    <p><strong>Pseudo SQL:</strong> <code id="pseudoSql"></code></p>
+                    <p><strong>True SQL:</strong> <code id="trueSql"></code></p>
+                </div>
+                <a id="downloadLink" href="#" class="download-btn">Download CSV</a>
+            </div>
+
+            <div id="error" class="error hidden"></div>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
