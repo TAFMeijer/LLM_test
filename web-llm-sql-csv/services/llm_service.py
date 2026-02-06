@@ -19,6 +19,7 @@ Columns:
   country
   implementation_period_name
   module
+  cost_input
   intervention
   total_amount
 

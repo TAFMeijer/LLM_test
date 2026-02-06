@@ -13,6 +13,8 @@ COLUMN_MAP = {
         "country": "[Country]",
         "implementation_period_name": "[ImplementationPeriodName]",
         "intervention": "[Intervention]",
+        "module": "[Module]",
+        "cost_input": "[Cost Input]",
         "total_amount": "[Total Amount]",
     }
 }
