@@ -3,3 +3,5 @@ google-genai
 sqlalchemy
 pymssql
 python-dotenv
+pandas
+openpyxl

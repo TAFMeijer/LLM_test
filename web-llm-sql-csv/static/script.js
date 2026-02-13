@@ -56,11 +56,25 @@ document.addEventListener('DOMContentLoaded', () => {
             pseudoSqlCode.textContent = data.pseudo_sql;
             trueSqlCode.textContent = data.true_sql;
 
-            // Create CSV blob and link
-            const blob = new Blob([data.csv_data], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            downloadLink.href = url;
-            downloadLink.download = 'query_results.csv';
+            downloadLink.onclick = async () => {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ true_sql: data.true_sql }),
+                });
+
+                const blob = await response.blob();
+
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "query_results.xlsx";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            };
 
             resultDiv.classList.remove('hidden');
 

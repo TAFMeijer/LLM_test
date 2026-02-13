@@ -3,6 +3,8 @@ import urllib.parse
 from sqlalchemy import create_engine, text
 import csv
 import io
+import pandas as pd
+import openpyxl
 
 TABLE_MAP = {
     "GC7Budget": "[dbo].[GC7 Budget Data]"
@@ -67,11 +69,13 @@ def execute_query(sql):
     engine = create_engine(connection_string)
     
     with engine.connect() as connection:
-        result = connection.execute(text(sql))
-        columns = result.keys()
-        data = result.fetchall()
-        
-    return data, columns
+        #result = connection.execute(text(sql))
+        #columns = result.keys()
+        #data = result.fetchall()
+        df_Budget = pd.read_sql( text(sql), connection )
+
+    #return data, columns
+    return df_Budget
 
 def results_to_csv(data, columns):
     output = io.StringIO()
@@ -79,3 +83,18 @@ def results_to_csv(data, columns):
     writer.writerow(columns)
     writer.writerows(data)
     return output.getvalue()
+
+def results_to_xlsx(df: pd.DataFrame):
+    """
+    Converts a pandas DataFrame to an in-memory Excel (.xlsx) file.
+    Returns a BytesIO object.
+    """
+    output = io.BytesIO()
+    
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Results")
+    
+    output.seek(0)  # Important: reset pointer to start
+    
+    return output
+
