@@ -7,7 +7,9 @@ def translate_to_pseudo_sql(query):
         raise ValueError("GEMINI_API_KEY not found in environment variables")
         
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-pro-latest')
+
+    #model = genai.GenerativeModel('gemini-pro-latest')
+    model = genai.GenerativeModel('gemini-flash-latest')
     
     system_prompt = """
 You are an assistant that writes ONLY T-SQL SELECT queries for SQL Server.

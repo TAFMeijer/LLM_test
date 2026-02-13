@@ -2,8 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_file
 import os
 from dotenv import load_dotenv
 from services.llm_service import translate_to_pseudo_sql
-from services.db_service import translate_to_true_sql, execute_query, results_to_csv
-import io
+from services.db_service import translate_to_true_sql, execute_query, results_to_csv, results_to_xlsx
 
 load_dotenv()
 
@@ -40,9 +39,24 @@ def query():
             'true_sql': true_sql,
             'csv_data': csv_content
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/download', methods=['POST'])
+def download_file():
+    data = request.get_json()
+    true_sql = data.get("true_sql")
+
+    df_budget = execute_query(true_sql)
+    xlsx_content = results_to_xlsx(df_budget)
+
+    return send_file(
+        xlsx_content,
+        as_attachment=True,
+        download_name="query_results.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
