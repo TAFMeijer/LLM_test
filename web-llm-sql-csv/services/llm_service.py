@@ -5,33 +5,36 @@ import io
 
 def get_schema_context():
     """
-    Reads db_schema.xlsx and returns the schema as paired rows to preserve
-    parent-child relationships (module→intervention, cost_group→cost_input).
+    Reads db_schema.xlsx and returns valid-value tables for both sheets:
+    - GC7_budget  → budget hierarchy (module/intervention/cost)
+    - Geography   → geography lookup (region/department)
     """
     try:
         if not os.path.exists("db_schema.xlsx"):
-            return ""
+            return "", ""
 
-        df = pd.read_excel("db_schema.xlsx")
-        
-        # Format as a table of rows to preserve parent-child relationships
-        lines = []
-        # Header
-        lines.append("  " + " | ".join(df.columns))
-        lines.append("  " + "-" * (len(" | ".join(df.columns)) + 2))
-        # Rows (no deduplication — repeats are intentional to show parent-child links)
-        for _, row in df.iterrows():
-            lines.append("  " + " | ".join(str(v) if pd.notna(v) else "" for v in row))
-        
-        if not lines:
-            return ""
+        xl = pd.ExcelFile("db_schema.xlsx")
 
-        return "Valid values (each row shows which values belong together):\n" + "\n".join(lines)
+        def sheet_to_table(sheet_name):
+            if sheet_name not in xl.sheet_names:
+                return ""
+            df = xl.parse(sheet_name)
+            lines = []
+            lines.append("  " + " | ".join(str(c) for c in df.columns))
+            lines.append("  " + "-" * (sum(len(str(c)) for c in df.columns) + 3 * (len(df.columns) - 1) + 2))
+            for _, row in df.iterrows():
+                lines.append("  " + " | ".join(str(v) if pd.notna(v) else "" for v in row))
+            return "\n".join(lines)
+
+        budget_context = sheet_to_table("GC7_budget")
+        geo_context = sheet_to_table("Geography")
+        return budget_context, geo_context
+
     except Exception as e:
         print(f"Error reading schema context: {e}")
-        return ""
+        return "", ""
 
-def translate_to_pseudo_sql(query):
+def translate_to_sql(query):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not found in environment variables")
@@ -39,72 +42,89 @@ def translate_to_pseudo_sql(query):
     client = genai.Client(api_key=api_key)
 
     model = 'gemini-2.5-flash'
-    
-    schema_context = get_schema_context()
+
+    budget_context, geo_context = get_schema_context()
 
     system_prompt = f"""
 You are a precise SQL assistant. Your job is to translate a user's question into a T-SQL SELECT query for SQL Server — but ONLY when you are confident you understand exactly what they want.
 
-## Schema
+## Tables
 
-Table: GC7Budget
+### Table 1: [dbo].[GC7 Budget Data]  (alias: b)
 Columns:
-  country
-  implementation_period_name
-  module
-  intervention
-  cost_group
-  cost_input
-  total_amount
+  [Country]                    — country name (join key to Geography Lookup)
+  [ImplementationPeriodName]   — grant / implementation period
+  [Module]                     — programme module
+  [Intervention]               — intervention within a module
+  [Cost Category]              — cost group / grouping (parent of Cost Input)
+  [Cost Input]                 — individual cost line
+  [Total Amount]               — budget amount (numeric)
 
-{schema_context}
+### Table 2: [dbo].[Geography Lookup]  (alias: g)
+Columns:
+  [Geography Name]   — country name (join key to GC7 Budget Data)
+  [NewRegioShort]    — region abbreviation (e.g. HIA1, EECA, Asia)
+  [NewDept]          — department abbreviation
 
-## Column Relationships (Hierarchies)
+### Join key
+  b.[Country] = g.[Geography Name]
 
-There are two parent-child hierarchies in the data:
+## Valid Values — Budget context schema
+Each row shows all unique values in that column.
+{budget_context}
 
-1. **module → intervention**: Each module has a specific subset of interventions. An intervention only belongs to one module. Use the valid values table above to determine which interventions belong to which module.
-2. **cost_group → cost_input**: Each cost_group has a specific subset of cost_inputs. A cost_input only belongs to one cost_group.
+## Valid Values — Geography context schema
+Each row shows all unique values in that column.
+{geo_context}
 
-IMPORTANT: Every cost_group has a cost_input with the exact same name. When a user refers to a value that exists as both a cost_group and a cost_input, ALWAYS filter on cost_group, not cost_input, unless the user explicitly asks for cost_input level detail.
+## Column Relationships
+
+1. **[Module] → [Intervention]**: Each module has a specific set of interventions. An intervention belongs to exactly one module. In the budget context schema module and intervention are shown as pairs
+2. **[Cost Category] → [Cost Input]**: Each cost category has a specific set of cost inputs. In the budget context schema cost category and cost input are shown as pairs. When a value is both a cost category and a cost input name, ALWAYS filter on [Cost Category] unless the user explicitly asks for cost input detail.
 
 ## Filtering Rules
 
-When the user mentions a specific value (e.g., a country, module, or intervention):
-1. Check if it clearly matches one of the valid values in the table above (exact or obvious abbreviation).
-2. If YES — use an exact match: WHERE column = 'ExactValue'
-3. If the match is CLOSE but uncertain (e.g., typo, partial name, acronym that could mean multiple things) — ask for clarification. Do NOT guess.
-4. Do NOT use LIKE unless the user explicitly asks for a partial/fuzzy match.
-5. Use the hierarchy table to infer the correct column: if the user mentions a value that is a module name, filter on module; if it is an intervention name, filter on intervention. Same logic applies to cost_group vs. cost_input.
+1. Check if the user's value clearly matches a valid value above (exact or obvious abbreviation).
+2. If YES — use exact match: WHERE [Column] = 'ExactValue'
+3. If CLOSE but uncertain — ask for clarification. Do NOT guess.
+4. Do NOT use LIKE unless the user explicitly asks for a fuzzy match.
+5. Infer the correct column from the hierarchy (module vs. intervention, cost category vs. cost input).
+
+## JOIN Rules
+
+- Use a JOIN only when the user's question requires regional ([NewRegioShort]) or departmental ([NewDept]) grouping/filtering:
+    SELECT ...
+    FROM [dbo].[GC7 Budget Data] b
+    LEFT JOIN [dbo].[Geography Lookup] g ON b.[Country] = g.[Geography Name]
+- If the question only involves budget columns (country, module, intervention, cost, period), query [dbo].[GC7 Budget Data] alone — no join needed.
 
 ## Aggregation Rules
 
-- Default: aggregate (SUM total_amount) grouped by country.
-- If the user asks for a breakdown by module, intervention, cost_group, cost_input, or another column — group by that column instead.
-- If it is unclear which level of detail the user wants, ask.
+- Default: SUM([Total Amount]) grouped by b.[Country].
+- Adjust GROUP BY based on what the user asks for (module, region, department, etc.).
+- If the level of detail is unclear, ask.
 
 ## Output Rules
 
 - Return ONLY a single T-SQL SELECT query, nothing else.
-- Always alias SUM(total_amount) AS [total amount].
-- Do NOT use square brackets or quotes for identifiers.
-- Do NOT use schema prefixes like dbo.
-- Use ONLY the table and column names listed above.
-- Always end the query with ORDER BY [total amount] DESC, unless the user explicitly asks for a different sort order.
+- Always alias SUM([Total Amount]) AS [total amount].
+- Use exact bracketed column and table names as shown above.
+- Do NOT add schema prefixes (dbo.) in column aliases.
+- Always end with ORDER BY [total amount] DESC unless the user asks otherwise.
 
 ## Special Responses
 
 - If the question cannot be answered from this schema: return exactly CANNOT_ANSWER
-- If you are unsure about ANY of the following, ask a clarifying question instead of guessing:
-    * Which specific value the user means (e.g., ambiguous name, unknown acronym, or a value that appears in multiple columns)
-    * Whether the user means a module or an intervention (they are related but different levels of detail)
-    * Whether the user means a cost_group or a cost_input (when the name is the same, always prefer cost_group — but ask if the user seems to want cost_input level detail)
-    * Which level of detail they want (e.g., by module vs. by intervention, or by cost_group vs. by cost_input)
+- If you are unsure about any of the following, ask instead of guessing:
+    * Which specific value the user means
+    * Whether the user means module or intervention level
+    * Whether the user means cost category or cost input level
+    * Which level of geographic aggregation (country / region / department)
 
 When asking for clarification, return exactly:
 CLARIFICATION_NEEDED: <your question in plain, non-technical language>
 
-Do NOT use SQL terms like "GROUP BY", "aggregate", or "filter" in your clarifying question.
+Do NOT use SQL terms like "GROUP BY", "aggregate", "filter", or "JOIN" in your clarifying question.
 """
     
     full_prompt = f"{system_prompt}\n\nUser Question: {query}\nSQL Query:"

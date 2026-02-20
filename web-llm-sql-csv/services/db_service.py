@@ -6,51 +6,15 @@ import io
 import pandas as pd
 import openpyxl
 
-TABLE_MAP = {
-    "GC7Budget": "[dbo].[GC7 Budget Data]"
-}
-
-COLUMN_MAP = {
-    "GC7Budget": {
-        "country": "[Country]",
-        "implementation_period_name": "[ImplementationPeriodName]",
-        "module": "[Module]",
-        "intervention": "[Intervention]",
-        "cost_group": "[Cost Category]",
-        "cost_input": "[Cost Input]",
-        "total_amount": "[Total Amount]",
-    }
-}
-
 FORBIDDEN_KEYWORDS = ["insert", "update", "delete", "drop", "alter", "truncate"]
 
-def translate_to_true_sql(pseudo_sql):
-    # Basic validation
-    lower_sql = pseudo_sql.lower()
+def validate_sql(sql):
+    """Safety check — reject any non-SELECT statements."""
+    lower_sql = sql.lower()
     for keyword in FORBIDDEN_KEYWORDS:
         if keyword in lower_sql:
             raise ValueError(f"Forbidden keyword detected: {keyword}")
-            
-    # Translation
-    true_sql = pseudo_sql
-    
-    # Replace Table Names
-    for logical_table, true_table in TABLE_MAP.items():
-        # Simple replacement - in a real scenario, this might need more robust parsing
-        # to avoid replacing substrings in other contexts.
-        # Given the strict system prompt, simple replacement should work for now.
-        true_sql = true_sql.replace(logical_table, true_table)
-        
-    # Replace Column Names
-    # We need to iterate through tables to find which columns belong to which table
-    # But since the SQL might not fully qualify columns, we might just replace known column names
-    # if they are unique enough.
-    # A safer approach for this specific schema where columns are unique:
-    for table, columns in COLUMN_MAP.items():
-        for logical_col, true_col in columns.items():
-            true_sql = true_sql.replace(logical_col, true_col)
-            
-    return true_sql
+
 
 def execute_query(sql):
     user = os.getenv("SQL_USER_NAME")

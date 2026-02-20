@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import os
 from dotenv import load_dotenv
-from services.llm_service import translate_to_pseudo_sql, generate_observations
-from services.db_service import translate_to_true_sql, execute_query, add_percentage_column, results_to_xlsx
+from services.llm_service import translate_to_sql, generate_observations
+from services.db_service import execute_query, add_percentage_column, results_to_xlsx, validate_sql
 
 load_dotenv()
 
@@ -26,10 +26,10 @@ def interpret():
         if clarification:
             user_query = f"{user_query} (Context: {clarification})"
 
-        pseudo_sql = translate_to_pseudo_sql(user_query)
+        sql = translate_to_sql(user_query)
 
-        if pseudo_sql.startswith("CLARIFICATION_NEEDED"):
-            question = pseudo_sql.replace("CLARIFICATION_NEEDED:", "").strip()
+        if sql.startswith("CLARIFICATION_NEEDED"):
+            question = sql.replace("CLARIFICATION_NEEDED:", "").strip()
             return jsonify({
                 'status': 'clarification_needed',
                 'question': question,
@@ -38,7 +38,7 @@ def interpret():
 
         return jsonify({
             'status': 'ready',
-            'pseudo_sql': pseudo_sql
+            'sql': sql
         })
 
     except Exception as e:
@@ -47,16 +47,16 @@ def interpret():
 
 @app.route('/api/execute', methods=['POST'])
 def execute():
-    """Step 2: Pseudo SQL -> True SQL -> DB -> results."""
+    """Step 2: Run the SQL the LLM produced directly against the DB."""
     data = request.json
-    pseudo_sql = data.get('pseudo_sql')
+    sql = data.get('sql')
 
-    if not pseudo_sql:
-        return jsonify({'error': 'No pseudo_sql provided'}), 400
+    if not sql:
+        return jsonify({'error': 'No sql provided'}), 400
 
     try:
-        true_sql = translate_to_true_sql(pseudo_sql)
-        df = execute_query(true_sql)
+        validate_sql(sql)  # safety check (no INSERT/UPDATE/DELETE/DROP etc.)
+        df = execute_query(sql)
         df = add_percentage_column(df)
 
         # For the CSV (sent to observations LLM), format % of total as a readable string
@@ -67,8 +67,7 @@ def execute():
 
         return jsonify({
             'status': 'success',
-            'pseudo_sql': pseudo_sql,
-            'true_sql': true_sql,
+            'sql': sql,
             'csv_data': csv_content
         })
 

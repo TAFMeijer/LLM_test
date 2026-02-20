@@ -115,14 +115,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('/api/execute', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pseudo_sql: interpretData.pseudo_sql }),
+                body: JSON.stringify({ sql: interpretData.sql }),
             });
             const data = await res.json();
             removeTyping2();
 
             if (!res.ok) throw new Error(data.error || 'An error occurred');
 
-            pendingTrueSql = data.true_sql;
+            pendingTrueSql = data.sql;
             pendingCsvData = data.csv_data;
             awaitingClarification = false;
             lastSuccessfulQuery = queryText;  // remember for follow-up loop
@@ -134,8 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <details class="debug-details">
                         <summary>Show query details</summary>
                         <div class="debug-info">
-                            <p><strong>Pseudo SQL:</strong> <code>${escHtml(data.pseudo_sql)}</code></p>
-                            <p style="margin-top:0.4rem"><strong>True SQL:</strong> <code>${escHtml(data.true_sql)}</code></p>
+                                <p><strong>SQL:</strong> <code>${escHtml(data.sql)}</code></p>
                         </div>
                     </details>
                     <a class="download-btn" href="#">⬇ Download Excel</a>
