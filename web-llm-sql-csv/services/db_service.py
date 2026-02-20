@@ -6,7 +6,7 @@ import io
 import pandas as pd
 import openpyxl
 
-FORBIDDEN_KEYWORDS = ["insert", "update", "delete", "drop", "alter", "truncate"]
+FORBIDDEN_KEYWORDS = ["insert", "update", "delete", "drop", "alter", "truncate", "HPMT", "THFA", "select * from"]
 
 def validate_sql(sql):
     """Safety check — reject any non-SELECT statements."""

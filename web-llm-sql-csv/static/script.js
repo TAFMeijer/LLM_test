@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ── Clarification needed — ask and stop here ──────────────────────
         if (interpretData.status === 'clarification_needed') {
+            removeTyping1();
             originalQuery = interpretData.original_query || queryText;
             awaitingClarification = true;
             appendBubble('assistant', escHtml(interpretData.question));
@@ -102,7 +103,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // ── Cannot answer — tell the user and stop ────────────────────────
+        if (interpretData.status === 'cannot_answer') {
+            removeTyping1();
+            appendBubble('assistant', 'Sorry, I cannot answer this.');
+            setLoading(false);
+            queryInput.value = '';
+            adjustHeight(queryInput);
+            queryInput.focus();
+            return;
+        }
+
         // ── Question is clear — acknowledge, then execute ─────────────────
+        removeTyping1();
         const ack = clarificationText
             ? 'Thanks for clarifying, here you go!'
             : 'Here you go!';

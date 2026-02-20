@@ -36,6 +36,9 @@ def interpret():
                 'original_query': data.get('query')
             })
 
+        if sql.strip() == "CANNOT_ANSWER":
+            return jsonify({'status': 'cannot_answer'})
+
         return jsonify({
             'status': 'ready',
             'sql': sql
