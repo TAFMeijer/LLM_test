@@ -14,8 +14,9 @@ COLUMN_MAP = {
     "GC7Budget": {
         "country": "[Country]",
         "implementation_period_name": "[ImplementationPeriodName]",
-        "intervention": "[Intervention]",
         "module": "[Module]",
+        "intervention": "[Intervention]",
+        "cost_group": "[Cost Category]",
         "cost_input": "[Cost Input]",
         "total_amount": "[Total Amount]",
     }
@@ -77,6 +78,28 @@ def execute_query(sql):
     #return data, columns
     return df_Budget
 
+
+def add_percentage_column(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Appends a '% of total' column as a raw float ratio (e.g. 0.2341).
+    Excel formatting is applied separately in results_to_xlsx.
+    """
+    if len(df) <= 1:
+        return df  # Single value — skip
+
+    numeric_cols = df.select_dtypes(include="number").columns.tolist()
+    if len(numeric_cols) != 1:
+        return df  # Ambiguous or no numeric column — skip
+
+    amount_col = numeric_cols[0]
+    total = df[amount_col].sum()
+    if total == 0:
+        return df
+
+    df = df.copy()
+    df["% of total"] = df[amount_col] / total  # raw ratio, full precision
+    return df
+
 def results_to_csv(data, columns):
     output = io.StringIO()
     writer = csv.writer(output)
@@ -87,14 +110,33 @@ def results_to_csv(data, columns):
 def results_to_xlsx(df: pd.DataFrame):
     """
     Converts a pandas DataFrame to an in-memory Excel (.xlsx) file.
+    Applies #0.0% number format to the '% of total' column if present.
     Returns a BytesIO object.
     """
     output = io.BytesIO()
-    
+
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="Results")
-    
-    output.seek(0)  # Important: reset pointer to start
-    
+
+        # Apply percentage format to the '% of total' column
+        if "% of total" in df.columns:
+            ws = writer.sheets["Results"]
+            col_idx = df.columns.get_loc("% of total") + 1  # 1-based for openpyxl
+            for row in ws.iter_rows(min_row=2, min_col=col_idx, max_col=col_idx):
+                for cell in row:
+                    cell.number_format = "#0.0%"
+
+        # Apply #,##0 format to all other numeric columns
+        ws = writer.sheets["Results"]
+        numeric_cols = df.select_dtypes(include="number").columns
+        for col_name in numeric_cols:
+            if col_name == "% of total":
+                continue
+            col_idx = df.columns.get_loc(col_name) + 1
+            for row in ws.iter_rows(min_row=2, min_col=col_idx, max_col=col_idx):
+                for cell in row:
+                    cell.number_format = "#,##0"
+
+    output.seek(0)
     return output
 

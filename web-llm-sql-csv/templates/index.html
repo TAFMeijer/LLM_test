@@ -4,43 +4,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web LLM SQL CSV</title>
+    <title>Budget Query Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 
 <body>
-    <div class="container">
-        <header>
+    <div class="shell">
+        <header class="chat-header">
             <h1>Budget Query Assistant</h1>
             <p>Ask any question about the GF budget data.</p>
         </header>
 
-        <main>
-            <div class="input-group">
-                <textarea id="queryInput" placeholder="e.g., How much is the budget for the lab systems module?"
-                    rows="1"></textarea>
-                <button id="submitBtn">Ask</button>
-            </div>
+        <div id="chat"></div>
 
-            <div id="status" class="status hidden">
-                <div class="spinner"></div>
-                <span id="statusText">Processing...</span>
-            </div>
-
-            <div id="result" class="result hidden">
-                <h3>Result</h3>
-                <div class="debug-info">
-                    <p><strong>Pseudo SQL:</strong> <code id="pseudoSql"></code></p>
-                    <p><strong>True SQL:</strong> <code id="trueSql"></code></p>
-                </div>
-                <a id="downloadLink" href="#" class="download-btn">Download Excel File</a>
-            </div>
-
-            <div id="error" class="error hidden"></div>
-        </main>
+        <div id="inputBar">
+            <textarea id="queryInput" placeholder="Ask a question about the budget…" rows="1"></textarea>
+            <button id="sendBtn" title="Send">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z" />
+                </svg>
+            </button>
+        </div>
     </div>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+    <script src="{{ url_for('static', filename='script.js') }}?v=3"></script>
 </body>
 
 </html>
