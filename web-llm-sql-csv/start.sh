@@ -16,9 +16,14 @@ sleep 1
 echo "Starting Flask..."
 python app.py &> /tmp/flask.log &
 sleep 2
+# Get local IP for office network sharing
+LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I | awk '{print $1}' 2>/dev/null)
 
-# Start Cloudflare Quick Tunnel (no account needed)
+# Start Cloudflare Tunnel (Persistent to global-health-data.org)
 echo "Starting Cloudflare tunnel..."
-echo "Your public URL will appear below in a few seconds — share it with colleagues:"
+echo "Your app is now live globally at: https://global-health-data.org/BudgetQuery"
+if [ -n "$LOCAL_IP" ]; then
+    echo "Colleagues on the SAME office network can also access it at: http://$LOCAL_IP:5000/BudgetQuery"
+fi
 echo ""
-cloudflared tunnel --url http://localhost:5000 --no-autoupdate
+cloudflared tunnel --config cf_config.yml run budget-query

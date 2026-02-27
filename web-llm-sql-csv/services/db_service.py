@@ -6,14 +6,20 @@ import io
 import pandas as pd
 import openpyxl
 
-FORBIDDEN_KEYWORDS = ["insert", "update", "delete", "drop", "alter", "truncate", "HPMT", "THFA", "select * from"]
+import re
+
+FORBIDDEN_KEYWORDS = ["insert", "update", "delete", "drop", "alter", "truncate", "HPMT", "THFA"]
 
 def validate_sql(sql):
     """Safety check — reject any non-SELECT statements."""
     lower_sql = sql.lower()
     for keyword in FORBIDDEN_KEYWORDS:
-        if keyword in lower_sql:
+        if keyword.lower() in lower_sql:
             raise ValueError(f"Forbidden keyword detected: {keyword}")
+            
+    # Expressly block SELECT * FROM (handles multiple spaces/newlines)
+    if re.search(r"select\s+\*\s+from", lower_sql):
+        raise ValueError("Forbidden keyword detected: select * from")
 
 
 def execute_query(sql):

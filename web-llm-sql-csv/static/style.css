@@ -318,3 +318,78 @@ body {
 .hidden {
     display: none !important;
 }
+
+/* ── Feedback UI ── */
+.feedback-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    max-width: 80%;
+}
+
+.feedback-thumbs {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.thumb-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.thumb-btn:hover {
+    background: #f1f5f9;
+}
+
+.thumb-btn.active.up {
+    background: #dcfce7;
+    border-color: #22c55e;
+}
+
+.thumb-btn.active.down {
+    background: #fee2e2;
+    border-color: #ef4444;
+}
+
+.feedback-textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    resize: none;
+    outline: none;
+    height: 60px;
+}
+
+.feedback-textarea:focus {
+    border-color: var(--primary);
+}
+
+.feedback-submit-btn {
+    align-self: flex-start;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.feedback-submit-btn:hover {
+    background: var(--primary-hover);
+}

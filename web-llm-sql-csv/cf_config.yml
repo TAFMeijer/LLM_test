@@ -1,0 +1,10 @@
+tunnel: dff6e104-5829-46b2-a725-350d22cd938a
+credentials-file: /Users/tommeijer/.cloudflared/dff6e104-5829-46b2-a725-350d22cd938a.json
+
+ingress:
+  - hostname: "global-health-data.org"
+    path: "^/BudgetQuery.*"
+    service: "http://localhost:5000"
+  - hostname: "global-health-data.org"
+    service: "http_status:404"
+  - service: "http_status:404"

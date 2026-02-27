@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastSuccessfulQuery = '';  // tracks the last query that returned a result
     let observationsShown = false; // only show observations once per thread
 
+    // Base URL support for subpath hosting (e.g. /BudgetQuery)
+    const baseUrl = window.location.pathname.replace(/\/$/, "");
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     /** Auto-grow textarea */
@@ -71,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let interpretData;
         try {
-            const res = await fetch('/api/interpret', {
+            const res = await fetch(`${baseUrl}/api/interpret`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -125,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const removeTyping2 = showTyping();
 
         try {
-            const res = await fetch('/api/execute', {
+            const res = await fetch(`${baseUrl}/api/execute`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sql: interpretData.sql }),
@@ -164,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchObservations(queryText, pendingCsvData);
             } else {
                 appendBubble('assistant', 'Is everything clear, or would you like something added or corrected?');
+                appendFeedbackUI(queryText);
             }
 
         } catch (err) {
@@ -182,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fetchObservations = async (queryText, csvData) => {
         const removeTyping = showTyping();
         try {
-            const res = await fetch('/api/observations', {
+            const res = await fetch(`${baseUrl}/api/observations`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: queryText, csv_data: csvData }),
@@ -208,11 +212,80 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Follow-up prompt
                 appendBubble('assistant', 'Is everything clear, or would you like something added or corrected?');
+                appendFeedbackUI(queryText);
             }
         } catch {
             removeTyping();
             // Silently fail — observations are supplementary
         }
+    };
+
+    // ── Feedback UI ────────────────────────────────────────────────────────
+
+    const appendFeedbackUI = (queryText) => {
+        const row = document.createElement('div');
+        row.className = 'bubble-row bubble-row--assistant';
+
+        const container = document.createElement('div');
+        container.className = 'feedback-container';
+
+        container.innerHTML = `
+            <div class="feedback-thumbs">
+                <button class="thumb-btn up" aria-label="Thumbs Up">👍</button>
+                <button class="thumb-btn down" aria-label="Thumbs Down">👎</button>
+            </div>
+            <div class="feedback-form hidden" style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                <textarea class="feedback-textarea" placeholder="Any additional feedback?"></textarea>
+                <button class="feedback-submit-btn">Submit Feedback</button>
+            </div>
+        `;
+
+        const upBtn = container.querySelector('.thumb-btn.up');
+        const downBtn = container.querySelector('.thumb-btn.down');
+        const form = container.querySelector('.feedback-form');
+        const submitBtn = container.querySelector('.feedback-submit-btn');
+        const textarea = container.querySelector('.feedback-textarea');
+
+        let thumbValue = null;
+
+        const handleThumbClick = (isUp) => {
+            thumbValue = isUp;
+            upBtn.classList.toggle('active', isUp);
+            downBtn.classList.toggle('active', !isUp);
+            form.classList.remove('hidden');
+            textarea.focus();
+            scrollBottom();
+        };
+
+        upBtn.addEventListener('click', () => handleThumbClick(true));
+        downBtn.addEventListener('click', () => handleThumbClick(false));
+
+        submitBtn.addEventListener('click', async () => {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            try {
+                await fetch(`${baseUrl}/api/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: queryText,
+                        thumbs_up: thumbValue,
+                        feedback_text: textarea.value.trim()
+                    })
+                });
+
+                container.innerHTML = '<div style="color: #10b981; font-weight: 500; font-size: 0.85rem;">✓ Thank you for your feedback!</div>';
+            } catch (err) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Feedback';
+                alert('Failed to submit feedback. Please try again.');
+            }
+        });
+
+        row.appendChild(container);
+        chat.appendChild(row);
+        scrollBottom();
     };
 
     // ── Excel download ─────────────────────────────────────────────────────
@@ -226,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mm = String(now.getMinutes()).padStart(2, '0');
         const filename = `Budget Query ${dd}-${mmm}-${yy} ${hh}${mm}.xlsx`;
 
-        const res = await fetch('/api/download', {
+        const res = await fetch(`${baseUrl}/api/download`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ true_sql: trueSql, filename }),

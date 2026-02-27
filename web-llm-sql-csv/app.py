@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import os
+from datetime import datetime
+import pandas as pd
 from dotenv import load_dotenv
 from services.llm_service import translate_to_sql, generate_observations
 from services.db_service import execute_query, add_percentage_column, results_to_xlsx, validate_sql
@@ -111,5 +113,42 @@ def download_file():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+@app.route('/api/feedback', methods=['POST'])
+def feedback():
+    data = request.json
+    
+    feedback_entry = {
+        'Timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'IP Address': request.remote_addr,
+        'Original Query': data.get('query', ''),
+        'Thumbs Up': data.get('thumbs_up', None),
+        'Feedback Text': data.get('feedback_text', '')
+    }
+    
+    file_path = 'feedback_logs.xlsx'
+    
+    try:
+        if os.path.exists(file_path):
+            df_existing = pd.read_excel(file_path)
+            df_new = pd.DataFrame([feedback_entry])
+            df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+            df_combined.to_excel(file_path, index=False)
+        else:
+            df_new = pd.DataFrame([feedback_entry])
+            df_new.to_excel(file_path, index=False)
+            
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    from werkzeug.middleware.dispatcher import DispatcherMiddleware
+    from werkzeug.serving import run_simple
+    
+    # Mount the app at both / and /BudgetQuery
+    application = DispatcherMiddleware(app, {
+        '/BudgetQuery': app
+    })
+    
+    run_simple('0.0.0.0', 5000, application, use_reloader=True, use_debugger=True)

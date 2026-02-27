@@ -85,7 +85,7 @@ Each row shows all unique values in that column.
 ## Filtering Rules
 
 1. Check if the user's value clearly matches a valid value above (exact or obvious abbreviation).
-2. If YES — use exact match: WHERE [Column] = 'ExactValue'
+2. If YES — use exact match: WHERE [Column] = 'ExactValue', but ONLY use = when the requested value is an exact match to the valid value.
 3. If CLOSE but uncertain — ask for clarification. Do NOT guess.
 4. Do NOT use LIKE unless the user explicitly asks for a fuzzy match.
 5. Infer the correct column from the hierarchy (module vs. intervention, cost category vs. cost input).
@@ -107,6 +107,7 @@ Each row shows all unique values in that column.
 ## Output Rules
 
 - Return ONLY a single T-SQL SELECT query, nothing else.
+- NEVER use SELECT * (you must explicitly name the columns or aggregations you are selecting).
 - Always alias SUM([Total Amount]) AS [total amount].
 - Use exact bracketed column and table names as shown above.
 - Do NOT add schema prefixes (dbo.) in column aliases.
